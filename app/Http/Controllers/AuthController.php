@@ -7,6 +7,11 @@ use Illuminate\Support\Facades\Auth;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\Controller;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
+use Illuminate\Support\Facades\DB;
+
 
 class AuthController extends Controller
 {
@@ -68,4 +73,64 @@ class AuthController extends Controller
         $request->user()->tokens()->delete();
         return response()->json(['message' => 'Logout berhasil']);
     }
+
+    public function forgotPassword(Request $request)
+    {
+    $request->validate([
+        'email' => 'required|email|exists:users,email',
+    ]);
+
+    // Buat token reset
+    $token = Str::random(64);
+
+    // Simpan token ke tabel password_resets
+    DB::table('password_resets')->updateOrInsert(
+        ['email' => $request->email],
+        [
+            'token' => Hash::make($token),
+            'created_at' => now()
+        ]
+    );
+
+    // Buat URL reset password frontend
+    $resetUrl = 'http://localhost:5173/reset-password?token=' . $token . '&email=' . urlencode($request->email);
+
+    // Kirim email
+    Mail::raw("Klik link berikut untuk reset password Anda:\n\n$resetUrl", function ($message) use ($request) {
+        $message->to($request->email);
+        $message->subject('Reset Password Eyecare');
+    });
+
+    return response()->json([
+        'message' => 'Kami telah mengirim link reset password ke email Anda'
+    ]);
+}
+
+public function resetPassword(Request $request)
+{
+    $request->validate([
+        'email' => 'required|email|exists:users,email',
+        'token' => 'required',
+        'password' => 'required|min:6|confirmed',
+    ]);
+
+    $reset = DB::table('password_resets')->where('email', $request->email)->first();
+
+    if (!$reset || !Hash::check($request->token, $reset->token)) {
+        return response()->json([
+            'message' => 'Token tidak valid atau sudah kadaluarsa'
+        ], 400);
+    }
+
+    $user = User::where('email', $request->email)->first();
+    $user->update([
+        'password' => Hash::make($request->password)
+    ]);
+
+    DB::table('password_resets')->where('email', $request->email)->delete();
+
+    return response()->json([
+        'message' => 'Password berhasil diubah'
+    ]);
+}
 }

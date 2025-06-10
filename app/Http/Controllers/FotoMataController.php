@@ -23,10 +23,11 @@ class FotoMataController extends Controller
         if (!$foto) {
             return response()->json(['message' => 'Foto tidak ditemukan'], 404);
         }
+
         return response()->json([
             'id' => $foto->id,
             'user_id' => $foto->user_id,
-            'file_path' => asset($foto->file_path),
+            'file_path' => asset($foto->file_path), // akses URL publik
             'upload_date' => $foto->upload_date,
             'created_at' => $foto->created_at,
             'updated_at' => $foto->updated_at
@@ -35,44 +36,45 @@ class FotoMataController extends Controller
 
     // Menambahkan foto baru
     public function store(Request $request)
-{
-    // Cek apakah ada file yang diunggah
-    if (!$request->hasFile('file_path')) {
+    {
+        // Cek apakah ada file
+        if (!$request->hasFile('file_path')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'File tidak ditemukan dalam request'
+            ], 400);
+        }
+
+        // Validasi
+        $validator = Validator::make($request->all(), [
+            'user_id' => 'required|exists:users,id',
+            'file_path' => 'required|image|mimes:jpeg,png,jpg|max:2048',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Validasi gagal',
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        // Simpan gambar ke storage/app/public/uploads
+        $image = $request->file('file_path');
+        $imagePath = $image->store('uploads', 'public');
+
+        // Simpan ke DB
+        $foto = FotoMata::create([
+            'user_id' => $request->user_id,
+            'file_path' => 'storage/' . $imagePath, // agar bisa diakses publik
+            'upload_date' => now(),
+        ]);
+
         return response()->json([
-            'success' => false,
-            'message' => 'File tidak ditemukan dalam request'
-        ], 400);
+            'message' => 'Foto berhasil diunggah!',
+            'data' => $foto
+        ]);
     }
-
-    $validator = Validator::make($request->all(), [
-        'user_id' => 'required|exists:users,id',
-        'file_path' => 'required|image|mimes:jpeg,png,jpg|max:2048', 
-    ]);
-
-    if ($validator->fails()) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Validasi gagal',
-            'errors' => $validator->errors()
-        ], 422);
-    }
-
-    // Simpan gambar ke storage
-    $image = $request->file('file_path');
-    $imagePath = $image->store('uploads', 'public'); 
-
-    // Simpan ke database
-    $foto = FotoMata::create([
-        'user_id' => $request->user_id,
-        'file_path' => 'storage/' . $imagePath, 
-        'upload_date' => now(),
-    ]);
-
-    return response()->json([
-        'message' => 'Foto berhasil diunggah!',
-        'data' => $foto
-    ]);
-}
 
     // Memperbarui data foto
     public function update(Request $request, $id)
@@ -90,12 +92,13 @@ class FotoMataController extends Controller
             return response()->json($validator->errors(), 422);
         }
 
+        // Ganti file jika ada file baru
         if ($request->hasFile('file_path')) {
-            // Hapus file lama jika ada
+            // Hapus file lama
             Storage::disk('public')->delete(str_replace('storage/', '', $foto->file_path));
 
-            // Simpan gambar baru
-            $imagePath = $request->file('file_path')->storePublicly('uploads', 'public');
+            // Simpan file baru
+            $imagePath = $request->file('file_path')->store('uploads', 'public');
             $foto->file_path = 'storage/' . $imagePath;
         }
 

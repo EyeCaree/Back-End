@@ -6,7 +6,11 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => ['http://localhost:5173'], // domain temanmu
+    'allowed_origins' => ['*'],
+    // [
+    // 'http://localhost:5173',
+    // 'http://192.168.1.136:3000',
+    // ],
 
     'allowed_origins_patterns' => [],
 
