@@ -92,10 +92,10 @@ class AuthController extends Controller
         ]
     );
 
-    // Buat URL reset password frontend
-    $resetUrl = 'http://localhost:5173/reset-password?token=' . $token . '&email=' . urlencode($request->email);
+    // Ambil URL frontend dari .env
+        $resetUrl = env('FRONTEND_URL') . '/reset-password?token=' . $token . '&email=' . urlencode($request->email);
 
-    // Kirim email
+    // Kirim email reset
     Mail::raw("Klik link berikut untuk reset password Anda:\n\n$resetUrl", function ($message) use ($request) {
         $message->to($request->email);
         $message->subject('Reset Password Eyecare');
