@@ -46,7 +46,7 @@ class PredictionController extends Controller
                 'file',
                 file_get_contents($fullPath),
                 basename($fullPath)
-            )->post('https://eyecaremodel.onrender.com');
+            )->post('https://eyecaremodel.onrender.com/predict');
 
             if (!$response->ok()) {
                 return response()->json([
