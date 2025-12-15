@@ -46,7 +46,7 @@ class PredictionController extends Controller
                 'file',
                 file_get_contents($fullPath),
                 basename($fullPath)
-            )->post('http://127.0.0.1:5000/predict');
+            )->post('https://eyecaremodel.onrender.com');
 
             if (!$response->ok()) {
                 return response()->json([
